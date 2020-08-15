@@ -1,30 +1,25 @@
-const greets = require('../server/protos/greet_pb');
-const greetService = require('../server/protos/greet_grpc_pb');
+const path = require('path');
+const protoLoader = require('@grpc/proto-loader');
+const grpc = require('grpc');
 
-const calc = require('../server/protos/calculator_pb');
-const calcService = require('../server/protos/calculator_grpc_pb');
+// gRPC services
+const greetProtoPath = path.join(__dirname, '..', 'protos', 'greet.proto');
+const greetProtoDefinition = protoLoader.loadSync(greetProtoPath, {
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: true,
+})
 
-const grpc = require('grpc')
+const greetPackageDefinition = grpc.loadPackageDefinition(greetProtoDefinition).greet
 
 // Implements the greet RPC method
 function greet(call, callback) {
-    const greeting = new greets.GreetResponse();
-    greeting.setResult(
-        `hello ${call.request.getGreeting().getFirstName()} ${call.request.getGreeting().getLastName()}`
-    )
+    const firstName = call.request.greeting.first_name;
+    const lastName = call.request.greeting.last_name;
 
-    callback(null, greeting)
-}
-
-// Implement the calculator RPC method
-function sum(call, callback) {
-    const sumResponse = new calc.SumResponse()
-
-    sumResponse.setSumResult(
-        call.request.getFirstNumber() + call.request.getLastNumber()
-    )
-
-    callback(null, sumResponse);
+    callback(null, { result: `hello ${firstName} ${lastName}` })
 }
 
 function main() {
@@ -32,7 +27,7 @@ function main() {
 
     // server.addService(calcService.CalculatorServiceService, { sum: sum })
 
-    server.addService(greetService.GreetServiceService, { greet: greet });
+    server.addService(greetPackageDefinition.GreetService.service, { greet: greet });
 
     server.bind("127.0.0.1:50051", grpc.ServerCredentials.createInsecure())
     server.start()
